@@ -217,6 +217,8 @@ ggplot(data = ib.cut2) +
   
 therm.temps
 ```
+
+
 ## Statistical Analysis
 
 Each varaiable is analysed using a paried t test, pairing observations within replicates.
@@ -242,7 +244,8 @@ therm$cat = NA
 #calculate means within reps
   therm.means = therm2 %>% group_by(cat, rep) %>%
     summarise(mean_repvar = mean(meanvar), mean_reperr = mean(meanerr))
-  therm.means
+
+paged_table(therm.means)
 
 #paired t tests: take means for both variables, convert to wide format
 paired = therm %>% group_by(rep) %>%
@@ -301,17 +304,16 @@ p.err = ggplot(therm2, aes(x = cat, y = meanerr)) +
     #text and significance
   labs(y = "Hourly Error (\u00B0C)",  x = NULL, shape = "replicate") +
     geom_signif( aes(color = NULL), step_increase = 0.15,
-    comparisons = list(c("inbred", "hybrid"), c("inbred", "mix"), c("hybrid", "mix")),
+    comparisons = list(c("inbred", "hybrid"), c("inbred", "mixed"), c("hybrid", "mix")),
     annotations = err.annotate, textsize = 3) +
   theme(axis.text.x.bottom = element_blank(),
         panel.border = element_blank(),
         axis.ticks.x = element_blank())
-p.err
   
   #therm var
 p.var = ggplot(therm2, aes(x = cat, y = meanvar)) +
   #bars for means
-  geom_col(data = therm.allmeans, aes(y = mean_allmwv, fill = cat),
+  geom_col(data = therm.allmeans, aes(y = mean_allvar, fill = cat),
            position = "dodge", alpha = 0.5, width = 0.5,
            show.legend = F) + 
   #individual points
@@ -321,21 +323,16 @@ p.var = ggplot(therm2, aes(x = cat, y = meanvar)) +
     #text and significance
   labs(y = "Hourly Variance (\u00B0C^2)", shape = "replicate", x = NULL) +
     geom_signif( aes(color = NULL), step_increase = 0.15,
-    comparisons = list(c("inbred", "hybrid"), c("inbred", "mix"), c("hybrid", "mix")),
+    comparisons = list(c("inbred", "hybrid"), c("inbred", "mix"), c("hybrid", "mixed")),
     annotations = var.annotate, textsize = 3) +
     theme(panel.border = element_blank(),
           axis.text.x = element_text(size = 11))
-p.var
   
   #manuscript figure
 both.vars = plot_grid(p.err, p.var, labels = c("", "C"), nrow = 2)
-both.vars
 
 plot_grid(therm.temps, both.vars, labels = "AUTO", ncol = 2,
           rel_widths = c(1, 0.6))
-
-#bquote("Hourly Variance "("\u00B0"~C^2))
-  
 ```
 
 
@@ -421,7 +418,7 @@ pbar.err = ggplot(therm2, aes(x = cat, y = meanerr)) +
 #plot thermal variance
 pbar.var = ggplot(therm2, aes(x = cat, y = meanvar)) +
   #bars for means
-  geom_col(data = therm.means, aes(y = mean_repmwv, fill = rep),
+  geom_col(data = therm.means, aes(y = mean_repvar, fill = rep),
            position = "dodge", alpha = 0.5, width = 0.5) + 
   #individual points
   geom_pointrange(aes(ymax = meanvar+sevar, ymin = meanvar-sevar, color = rep),
