@@ -1,0 +1,441 @@
+---
+title: "Thermoregulation Assay"
+author: "Dylan Ryals"
+date: "2024-03-28"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Introduction
+
+Results from:
+
+Why diversity matters: non-additive fitness benefits of individual versus colony-level genetic variation in social insects
+
+by Ryals, D.K., Given, K.J., and Harpur, B.A.
+
+
+Honey bee thermoregulation experiment, summer 2023.
+
+
+## Setup 
+
+```{r read data}
+#load required libraries
+#####
+
+library(tidyverse)
+library(scales)
+library(ggrepel)
+library(readxl)
+library(lubridate)
+library(knitr)
+library(ggsignif)
+library(cowplot)
+library(rmarkdown)
+
+#custom standard error function
+std.error <- function(x) sd(x)/sqrt(length(x))
+
+#set gg theme
+theme_set(theme_bw())
+
+
+#read temperature sensor (iButton) data
+#####
+
+files = list.files("therm_data/sensors")
+
+ib = data.frame(Date = NA, Time = NA, Value = NA, serial = NA)
+
+for (f in files){
+  path = paste0("therm_data/sensors/", f)
+  #read
+  suppressWarnings({tmp = read_excel(path, skip = 21)})
+  #strip last line
+  tmp = tmp[-(nrow(tmp)),]
+  #grab name
+  tmp$serial = gsub("(^[^_]*)([_].*$)", "\\1", f)
+  #map
+  ib = rbind(ib, tmp)
+}
+#remove first row
+ib = ib[-1,]
+
+#format cols
+ib$temp = as.numeric(ib$Value)
+ib$datetime = as_datetime(paste(ib$Date, ib$Time))
+
+#read IB key to attach serial nubers to experimental groups
+ibkey = read_xlsx("therm_data/ibkey.xlsx")
+ibkey$serial_3 = as.character(ibkey$serial_3)
+ibkey$serial = paste0(ibkey$serial_1, ibkey$serial_2, 
+                      ibkey$serial_3, ibkey$serial_4)
+ibkey$rep = as.factor(ibkey$rep)
+ibkey$assay_id = as.factor(ibkey$assay_id)
+
+#attach experimental data
+ib = ib %>% left_join(ibkey %>% select(serial, assay_id), by = 'serial')
+
+#preview dataframe
+ib.preview = ib %>% 
+  group_by(assay_id) %>% 
+  arrange(datetime) %>%
+  slice(1:10)
+
+paged_table(ib.preview)
+```
+
+
+## Intro plots
+
+thermoregulation assay raw results. Sensor data without trimming to desired time-frame 
+
+```{r}
+#therm results
+ggplot(data = ib %>% filter(assay_id != 15)) +
+  geom_line(aes(x = datetime, y = temp, color = assay_id)) +
+  geom_line(data = ib %>% filter(assay_id == 15),
+              aes(x = datetime, y = temp), color= 'black') +
+  theme(legend.position = "none")
+```
+
+
+
+## Response variables
+
+Trim time period and calculate response variables for each nucleus colony:
+
+- hourly divergence from optimal temperature
+- hourly variance in temperature
+
+```{r}
+#trim data to desired 4-day period
+
+start.ib = as.POSIXct("2023-08-30 15:00:00", tz="UTC")
+end.ib = as.POSIXct("2023-09-03 15:00:00", tz="UTC")
+
+t_total = as.numeric((end.ib - start.ib), units = "hours")
+
+ib.cut = ib %>% filter(datetime > start.ib, 
+                       datetime < end.ib)
+###
+#therm stats
+
+#optimal temperature
+TNEST = 34.5
+
+# 1-hr windows
+ib.win = ib.cut
+
+windows = 
+  seq(
+    from=start.ib,
+    to= end.ib,
+    by="hour"
+  )
+
+#data frame for variables
+ib.variables = data.frame(var = NA, err = NA, mtemp = NA, hour = NA, assay_id = NA)
+
+#loop through each sensor
+for( i in unique(ib.win$assay_id)){
+  
+  #loop through each 1-hr window
+  tvar = data.frame(var = rep(NA, length(windows)-1))
+  
+  for(j in 1:(length(windows)-1)){
+    tmp.data = ib.win %>% filter(assay_id == i, datetime > windows[j],
+                        datetime <= windows[j+1]) %>% select(temp)
+    #thermal variance
+    tvar$var[j] = var(tmp.data$temp)
+    #thermal divergence (average across 12 datapoints)
+    tvar$err[j] = sum(abs(tmp.data$temp - TNEST))/12
+    tvar$mtemp[j] = mean(tmp.data$temp, na.rm = T)
+    tvar$hour[j] = windows[j+1]
+    tvar$assay_id[j] = i
+  }
+  #map output
+  ib.variables = rbind(ib.variables, tvar)
+}
+#remove first NA row
+ib.variables = ib.variables[-1,]
+#convert to numeric hour
+ib.variables$hour = as_datetime(ib.variables$hour, tz = "UTC")
+
+#summarise mean and se for each colony
+ib.variables.sum = ib.variables %>% group_by(assay_id) %>% 
+  summarise(meanvar = mean(var),
+            sevar = std.error(var),
+            meanerr = mean(err),
+            seerr = std.error(err))
+
+#add keys for experimental groups
+therm = ib.variables.sum %>% 
+  left_join(ibkey %>% select(assay_id, mix, rep), by = 'assay_id')
+
+paged_table(therm)
+```
+
+
+visualize trimmed data
+
+```{r}
+ib.cut2 = ib.cut
+#add control
+ib.cut2$control = ifelse(ib.cut2$assay_id == 15, "ambient", "nuclei")
+#add dummy horizontal line at optimal temperature
+  ib.add = ib.cut2 %>% filter(assay_id == 15) %>%
+    mutate(temp = TNEST, control = "optimal (35.4 C)", assay_id = 16)
+  ib.cut2 = rbind(ib.cut2, ib.add)
+ib.cut2$control = factor(ib.cut2$control, levels = c("nuclei", "optimal (35.4 C)", "ambient"))
+
+#add experimental groups
+ib.cut2 = ib.cut2 %>% 
+  left_join(ibkey %>% select(assay_id, mix))
+  #refactor
+  ib.cut2$mix[ib.cut2$mix %in% c("ii", "ti")] = "inbred"
+  ib.cut2$mix[ib.cut2$mix %in% c("tx", "ix")] = "hybrid"
+  ib.cut2$mix[ib.cut2$mix %in% c("ti:ii")] = "mixed"
+  ib.cut2$mix[ib.cut2$mix =="control"] = NA
+  ib.cut2$mix = factor(ib.cut2$mix, levels = c("inbred", "hybrid", "mixed"))
+
+group.colors = c("#648FFF", "#FFB000", "#DC267F")
+  
+therm.temps = 
+ggplot(data = ib.cut2) +
+  geom_line(aes(x = datetime, y = temp, color = mix, group = assay_id,
+                linetype = control), size = 0.6, alpha = 0.8) +
+  scale_color_manual(values = group.colors, na.value = "black") +
+  scale_linetype_manual(values= c(1,2,4)) +
+  labs(color = NULL, y = 'Temperature (\u00B0C)', linetype = NULL, x = NULL) +
+  theme(legend.position = "bottom",
+        legend.text = element_text(size = 11))
+  
+therm.temps
+```
+## Statistical Analysis
+
+Each varaiable is analysed using a paried t test, pairing observations within replicates.
+
+
+```{r}
+#create categories (experimental groups)
+therm$cat = NA
+  therm$cat[therm$mix == "ii" | therm$mix == "ti"] = "inbred"
+  therm$cat[therm$mix == "ix" | therm$mix == "tx"] = "hybrid"
+  therm$cat[therm$mix == "ti:ii"] = "mixed"
+  therm$cat = factor(therm$cat, levels = c("inbred", "hybrid", "mixed"))
+
+  #remove control colony
+  therm2 = therm %>% filter(!is.na(cat)) %>% 
+    arrange(rep)
+   therm2$unique_id = 1:nrow(therm2)
+  
+  
+#calculate means within categories
+  therm.allmeans = therm2 %>% group_by(cat) %>%
+    summarise(mean_allvar = mean(meanvar), mean_allerr = mean(meanerr))
+#calculate means within reps
+  therm.means = therm2 %>% group_by(cat, rep) %>%
+    summarise(mean_repvar = mean(meanvar), mean_reperr = mean(meanerr))
+  therm.means
+
+#paired t tests: take means for both variables, convert to wide format
+paired = therm %>% group_by(rep) %>%
+  #mean of inbred lines
+  filter(mix %in% c("ii", "ti")) %>%
+  summarise(inbred_var = mean(meanvar), inbred_err = mean(meanerr)) %>%
+  #mixed group
+  left_join(therm %>% 
+              filter(mix == "ti:ii") %>% 
+              select(mix_var = meanvar, mix_err = meanerr, rep)) %>%
+  #mean of hybrid lines
+  left_join(therm %>% 
+              filter(mix %in% c("ix", "tx")) %>% 
+              group_by(rep) %>% 
+              summarise(hybrid_var = mean(meanvar), hybrid_err = mean(meanerr)))
+
+#pvalues from paired t-tests
+  #thermal error: hybrid, mix, hybrid vs mix
+  test.ih.err = t.test(Pair(inbred_err, hybrid_err)~1, data = paired, alternative = "greater")
+  test.im.err = t.test(Pair(inbred_err, mix_err)~1, data = paired, alternative = "greater")
+  test.hm.err = t.test(Pair(hybrid_err, mix_err)~1, data = paired, alternative = "greater")
+  err.annotate = c(test.ih.err$p.value, test.im.err$p.value, test.hm.err$p.value) %>%
+    round(digits = 4) %>% as.character()
+  #thermal variance: hybrid, mix, hybrid vs mix
+  test.ih.var = t.test(Pair(inbred_var, hybrid_var)~1, data = paired, alternative = "greater")
+  test.im.var = t.test(Pair(inbred_var, mix_var)~1, data = paired, alternative = "greater")
+  test.hm.var = t.test(Pair(hybrid_var, mix_var)~1, data = paired, alternative = "greater")
+  var.annotate = c(test.ih.var$p.value, test.im.var$p.value, test.hm.var$p.value) %>%
+    round(digits = 4) %>% as.character()
+#display
+  err.annotate
+  var.annotate
+  
+#estimated differences
+  #thermal error
+  c(test.ih.err$estimate, test.im.err$estimate, test.hm.err$estimate) %>%
+      round(digits = 4) %>% as.character()
+  #thermal variance
+  c(test.ih.var$estimate, test.im.var$estimate, test.hm.var$estimate) %>%
+    round(digits = 4) %>% as.character()
+```
+
+## Main Figure
+
+```{r}
+#therm err
+p.err = ggplot(therm2, aes(x = cat, y = meanerr)) +
+  #bars for means
+  geom_col(data = therm.allmeans, aes(y = mean_allerr, fill = cat),
+           position = "dodge", alpha = 0.5, width = 0.5,
+           show.legend = F) + 
+  #individual points
+  geom_pointrange(aes(ymax = meanerr+seerr, ymin = meanerr-seerr, shape = rep),
+                  position=position_dodge(width=0.3)) +
+  scale_fill_manual(values = group.colors) +
+    #text and significance
+  labs(y = "Hourly Error (\u00B0C)",  x = NULL, shape = "replicate") +
+    geom_signif( aes(color = NULL), step_increase = 0.15,
+    comparisons = list(c("inbred", "hybrid"), c("inbred", "mix"), c("hybrid", "mix")),
+    annotations = err.annotate, textsize = 3) +
+  theme(axis.text.x.bottom = element_blank(),
+        panel.border = element_blank(),
+        axis.ticks.x = element_blank())
+p.err
+  
+  #therm var
+p.var = ggplot(therm2, aes(x = cat, y = meanvar)) +
+  #bars for means
+  geom_col(data = therm.allmeans, aes(y = mean_allmwv, fill = cat),
+           position = "dodge", alpha = 0.5, width = 0.5,
+           show.legend = F) + 
+  #individual points
+  geom_pointrange(aes(ymax = meanvar+sevar, ymin = meanvar-sevar, shape = rep),
+                  position=position_dodge(width=0.3)) +
+  scale_fill_manual(values = group.colors) +
+    #text and significance
+  labs(y = "Hourly Variance (\u00B0C^2)", shape = "replicate", x = NULL) +
+    geom_signif( aes(color = NULL), step_increase = 0.15,
+    comparisons = list(c("inbred", "hybrid"), c("inbred", "mix"), c("hybrid", "mix")),
+    annotations = var.annotate, textsize = 3) +
+    theme(panel.border = element_blank(),
+          axis.text.x = element_text(size = 11))
+p.var
+  
+  #manuscript figure
+both.vars = plot_grid(p.err, p.var, labels = c("", "C"), nrow = 2)
+both.vars
+
+plot_grid(therm.temps, both.vars, labels = "AUTO", ncol = 2,
+          rel_widths = c(1, 0.6))
+
+#bquote("Hourly Variance "("\u00B0"~C^2))
+  
+```
+
+
+## Supplemental Figures
+
+calculation of variables 
+```{r}
+#examples of error 
+varstart = as.POSIXct("2023-08-31 20:00:00", tz="UTC")
+varstop = as.POSIXct("2023-09-01 03:00:00", tz="UTC")
+vardata = ib.cut %>% filter(assay_id %in% c(4, 11),
+                                datetime > varstart,
+                                datetime < varstop)
+varsum = vardata %>% group_by(assay_id) %>%
+  summarise(tsum = sum(abs(temp - TNEST)), tmean = mean(temp))
+  varsum$y_manual = c(35, 33.75)
+
+varexA = ggplot(vardata) +
+  geom_line(aes(x = datetime, y = temp, color = assay_id)) +
+  geom_hline(yintercept = TNEST, linetype = 2) +
+  geom_ribbon(data = vardata %>% filter(assay_id == 4),  
+              aes(ymax = TNEST, ymin = temp, xmin = varstart, 
+                  xmax = varstop, x = datetime),
+              fill = 'red', alpha = 0.3) +
+  geom_ribbon(data = vardata %>% filter(assay_id == 11),  
+              aes(ymax = TNEST, ymin = temp, xmin = varstart, 
+                  xmax = varstop, x = datetime),
+              fill = 'turquoise2', alpha = 0.3)+
+  geom_label(data = varsum, aes(x = varstart + hours(3), 
+             label = round(tsum, 0), color = assay_id, y = y_manual)) +
+  labs(y = "Temperature (\u00B0C)", x = NULL) +
+  theme(legend.position = "none") +
+  theme(axis.text.x = element_blank())
+
+#examples of variance 
+hours = data.frame( datetime = 
+  seq(
+    from=varstart,
+    to=varstop,
+    by="hour"
+  ))
+
+exvar = ib.variables %>% filter(hour > varstart, 
+                                hour < varstop + hours(1),
+                                assay_id %in% c(4, 11)) %>%
+  mutate(midhour = hour - minutes(30))
+
+varexB = ggplot(vardata) +
+  geom_line(aes(x = datetime, y = temp, color = assay_id)) +
+  geom_vline(xintercept = hours$datetime, linetype = 2) +
+  labs(y = "Temperature (\u00B0C)", x = NULL) +
+  geom_label(data = exvar, aes(x = midhour, y = mtemp - 0.5, 
+                                 label = round(var, 2), 
+                                 color = assay_id)) +
+  theme(legend.position = "none")
+
+plot_grid(varexA, varexB, nrow = 2, labels = "AUTO")
+
+```
+
+
+explicit pairing for t-tests
+```{r}
+#thermal error
+pbar.err = ggplot(therm2, aes(x = cat, y = meanerr)) +
+  #bars for means
+  geom_col(data = therm.means, aes(y = mean_reperr, fill = rep),
+           position = "dodge", alpha = 0.5, width = 0.5) + 
+  #individual points
+  geom_pointrange(aes(ymax = meanerr+seerr, ymin = meanerr-seerr, color = rep),
+                  position=position_dodge(width=0.5),
+                  show.legend = F) +
+  #text and significance
+  labs(y = "Hourly Error (\u00B0 C)" , fill = "replicate", x = NULL) +
+  geom_signif( aes(color = NULL), step_increase = 0.1,
+    comparisons = list(c("inbred", "hybrid"), c("inbred", "mix"), c("hybrid", "mix")),
+    annotations = err.annotate, textsize = 4) +
+  theme(axis.text.x.bottom = element_blank(),
+        panel.border = element_blank(),
+        axis.ticks.x = element_blank())
+
+
+#plot thermal variance
+pbar.var = ggplot(therm2, aes(x = cat, y = meanvar)) +
+  #bars for means
+  geom_col(data = therm.means, aes(y = mean_repmwv, fill = rep),
+           position = "dodge", alpha = 0.5, width = 0.5) + 
+  #individual points
+  geom_pointrange(aes(ymax = meanvar+sevar, ymin = meanvar-sevar, color = rep),
+                  position=position_dodge(width=0.5),
+                  show.legend = F) +
+  #text and significance
+  labs(y = bquote("Hourly Variance (\u00B0 C^2)"), fill = "replicate", x = NULL) +
+  geom_signif( aes(color = NULL), step_increase = 0.1,
+    comparisons = list(c("inbred", "hybrid"), c("inbred", "mix"), c("hybrid", "mix")),
+    annotations = var.annotate, textsize = 4) +
+  theme(panel.border = element_blank())
+
+#supp figure
+plot_grid(pbar.err, pbar.var, labels = "AUTO", nrow = 2)
+
+```
+
