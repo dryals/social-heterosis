@@ -1,0 +1,258 @@
+---
+title: "Immune Callenge Assay"
+author: "Dylan Ryals"
+date: "2024-04-03"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Introduction
+
+Results from:
+
+Why diversity matters: non-additive fitness benefits of individual versus colony-level genetic variation in social insects
+
+by Ryals, D.K., Given, K.J., and Harpur, B.A.
+
+
+Honey bee immune challenge assay, summer 2023.
+
+
+## Setup 
+
+load packages and read data
+
+```{r}
+library(tidyverse)
+library(ggrepel)
+library(readxl)
+library(lubridate)
+library(survival)
+library(survminer)
+
+select = dplyr::select
+mutate = dplyr::mutate
+
+### Read in, clean data
+
+assay = read_excel("immune_data/cage_assay_2.xlsx", sheet = "removed",
+                   col_types = c("date", "numeric", "text", "numeric", 
+                                 "numeric", "text", "text"))
+
+fix = read_excel("immune_data/cage_assay_2.xlsx", sheet = "fixes",
+                 col_types = c("date", "numeric", "text", "numeric", 
+                               "numeric", "text", "text"))
+assay = rbind(assay, fix)
+
+assay$cup = as.character(assay$cup)
+
+cups = read_excel("immune_data/cage_assay_2.xlsx", sheet = "cups",
+                  col_types = c("numeric", "date", "date", "text", "numeric", "numeric",
+                                "text", "text"))
+cups$cup = as.character(cups$cup)
+cups$id = as.character(cups$id)
+cups$color = toupper(cups$color)
+
+key = read_excel("immune_data/id_key.xlsx", sheet = 'Sheet1')
+key$id = as.character(key$id)
+key$rep = as.character(key$rep)
+
+cups = cups %>% left_join(key)
+
+```
+
+
+Format data for survival analysis
+
+```{r}
+
+cuptype = data.frame(cup = unique(cups$cup), mix = NA)
+for(i in 1:nrow(cuptype)){
+  mix = cups$cross[cups$cup == cuptype$cup[i]] %>% sort(decreasing = T)
+  if(length(mix) == 2){
+    cuptype$mix[i] = paste0(mix[1], ":", mix[2])
+  }
+  else cuptype$mix[i] = mix
+}
+
+cups = cups %>% left_join(cuptype, by = 'cup')
+
+
+
+#see cup totals
+
+summary = assay %>% filter(!is.na(color)) %>%
+  group_by(cup, color) %>% 
+  summarise(sum_dead = sum(count, na.rm = T))
+
+
+
+#convert to long
+assay.narm = assay %>% filter(!is.na(count))
+assay.long = data.frame(datetime = NA, cup = NA, color = NA, status = NA)
+
+for(i in 1:nrow(assay.narm)){
+  #select relevant data in ith observation
+  tmp = assay.narm[i,] %>% select(-count, -observer, -note)
+  #repeat observation for each count (one row per bee removed)
+  for(j in 1:assay.narm$count[i]){
+    assay.long = rbind(assay.long, tmp)
+  }
+}
+assay.long = assay.long[-1,]
+
+
+assay2 = assay.long %>% 
+  left_join(cups %>% select(cup, color, id, control, start, run, cross, mix, rep), 
+            by = join_by(cup, color))
+assay2$start = as.numeric(assay2$start)
+assay2$runtime = assay2$datetime - assay2$start
+
+#fix order of some of the mix names
+assay2$mix[assay2$mix == "tx:ti"] = "ti:tx"
+assay2$mix[assay2$mix == "ix:ii"] = "ii:ix"
+#convert seconds to days
+assay2$days = assay2$runtime / (60 * 60 * 24)
+
+##test plots: brood mixes
+treatment = assay2 %>% filter(control == 0)
+test = treatment %>% filter(mix %in% c('ii', 'ti', 'ti:ii', "tx", "ix"))
+
+sfit = survfit(Surv(days, status)~mix, data = test)
+
+ggsurvplot(sfit, conf.int = T)
+
+
+ggsurvplot_facet(data = test, fit = sfit, facet.by = 'rep')
+
+
+coxph(Surv(runtime, status)~ cross + mix + rep, data = test)
+
+### three category: inbred, cross, and mix
+
+# add initial control run
+control = read_excel("immune_data/cage_assay_control.xlsx", sheet = "bees_removed",
+                     col_types = c("date", "text", "text", "numeric", "text", "text"))
+control = control %>% filter(color != "?", !is.na(color), cup %in% c(19:24))
+control$ntime = as.numeric(control$dateTime)
+control = control %>% rename(datetime = dateTime, status = dead) %>% select(-feed_remaining_ml, -note)
+control$id = NA
+control$control = 1
+control$start = mdy_hm("08/01/23 17:00")
+control$run = 0
+control$cross = NA
+control$mix = "ii" #this may cause issues!
+control$rep = 1
+control$runtime = control$ntime - as.numeric(mdy_hm("08/01/23 17:00"))
+control = control %>% select(-ntime)
+control$days = control$runtime / (60 * 60 * 24)
+
+assay3 = rbind(assay2, control)
+
+
+test3 = assay3 %>% filter(color != "?", 
+                          mix %in% c('ti', 'ii', 'ti:ii', 'tx', 'ix'))
+
+test3$cat = NA
+test3$cat[test3$mix == "ii" | test3$mix == "ti"] = "inbred"
+test3$cat[test3$mix == "ix" | test3$mix == "tx"] = "hybrid"
+test3$cat[test3$mix == "ti:ii"] = "mix"
+
+
+```
+
+## Survival Analysis
+
+```{r}
+
+#treatment different from control?
+survdiff(Surv(days, status)~control + strata(cat), data = test3)
+
+#comparing treatments
+test4 = test3
+test4$cat[test4$control == 1] = "control"
+test4$cat = factor(test4$cat, levels = c("inbred", "hybrid", "mix", "control"))
+
+#main figure
+group.colors = c("#648FFF", "#FFB000", "#DC267F")
+group.colors2 = c("#648FFF", "#FFB000", "#DC267F", "gray50")
+
+sfit3 = survfit(Surv(days, status)~cat, data = test4)
+
+gsp = ggsurvplot(sfit3, conf.int = T, palette = group.colors2) + 
+  labs(x = "Days")
+gsp
+
+#number of
+  #trials
+  test4 %>% filter(control == 0) %>% summarise(ncups = length(unique(cup)))
+  #controls
+  test4 %>% filter(control == 1) %>% summarise(ncups = length(unique(cup)))
+  #total days
+  max(test4$days)
+  #total days control
+  test4 %>% filter(control == 1) %>% summarise(max(days))
+  #total deaths in control
+  test4 %>% filter(control == 1) %>% summarise(sum(status == 1))
+  #total deaths in trials
+  test4 %>% filter(control == 0) %>% summarise(sum(status == 1))
+  
+
+  
+###test significance with log-rank tests
+  
+  lr.hm = survdiff(Surv(days, status)~cat + strata(rep), data = test4, 
+                   subset= cat %in% c("mix","hybrid"))
+  
+  lr.hi = survdiff(Surv(days, status)~cat + strata(rep), data = test4, 
+                   subset= cat %in% c("hybrid","inbred"))
+  
+  lr.mi = survdiff(Surv(days, status)~cat + strata(rep, cross), data = test4, 
+                   subset= cat %in% c("mix","inbred"))
+  
+  
+  #raw p values:
+  logrank = data.frame(comparison = c("inbred:hybrid", "inbred:mix", "hybrid:mix"),
+                    Pval = c(lr.hi$pvalue, lr.mi$pvalue, lr.hm$pvalue))
+  
+  logrank
+
+  
+### and cox proportional hazard model
+  
+coxph(Surv(days, status)~ cat + strata(rep), data = test4)
+  
+  
+test5 = test3 %>% filter(control == 0)  
+
+###test strata
+  
+  survdiff(Surv(days, status) ~ cat + strata(rep, cross), data = test5, 
+           subset= cat %in% c("mix","inbred")) 
+  
+  
+###crosses and partners
+  
+  same = assay2$cross == assay2$mix
+  indiv = assay2 %>% filter(control == 0)
+  
+  #add partners
+  indiv$partner = NA
+  mix = str_split_fixed(indiv$mix, ":", 2)
+  for(i in 1:nrow(indiv)){
+    if(mix[i,2] == ""){indiv$partner[i] = indiv$cross[i]}
+    else if(mix[i,1] == indiv$cross[i]){indiv$partner[i] = mix[i,2]}
+    else{indiv$partner[i] = mix[i,1]}
+  }
+  
+  
+  sfit4 = survfit(Surv(days, status) ~ cross + partner, data = indiv)
+  
+  ggsurvplot(fit = sfit4, conf.int = T, palette = "Dark2")
+  
+  ggsurvplot_facet(fit = sfit4, data = indiv, facet.by = 'cross', conf.int = T, pval = T)
+
+```
