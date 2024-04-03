@@ -265,26 +265,24 @@ paired = therm %>% group_by(rep) %>%
 #pvalues from paired t-tests
   #thermal error: hybrid, mix, hybrid vs mix
   test.ih.err = t.test(Pair(inbred_err, hybrid_err)~1, data = paired, alternative = "greater")
+    test.ih.err
   test.im.err = t.test(Pair(inbred_err, mix_err)~1, data = paired, alternative = "greater")
+    test.im.err
   test.hm.err = t.test(Pair(hybrid_err, mix_err)~1, data = paired, alternative = "greater")
+    test.hm.err
+    
   err.annotate = c(test.ih.err$p.value, test.im.err$p.value, test.hm.err$p.value) %>%
     round(digits = 4) %>% as.character()
+  
   #thermal variance: hybrid, mix, hybrid vs mix
   test.ih.var = t.test(Pair(inbred_var, hybrid_var)~1, data = paired, alternative = "greater")
+    test.ih.var
   test.im.var = t.test(Pair(inbred_var, mix_var)~1, data = paired, alternative = "greater")
+    test.im.var
   test.hm.var = t.test(Pair(hybrid_var, mix_var)~1, data = paired, alternative = "greater")
+    test.hm.var
+    
   var.annotate = c(test.ih.var$p.value, test.im.var$p.value, test.hm.var$p.value) %>%
-    round(digits = 4) %>% as.character()
-#display
-  err.annotate
-  var.annotate
-  
-#estimated differences
-  #thermal error
-  c(test.ih.err$estimate, test.im.err$estimate, test.hm.err$estimate) %>%
-      round(digits = 4) %>% as.character()
-  #thermal variance
-  c(test.ih.var$estimate, test.im.var$estimate, test.hm.var$estimate) %>%
     round(digits = 4) %>% as.character()
 ```
 
