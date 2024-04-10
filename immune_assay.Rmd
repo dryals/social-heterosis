@@ -42,7 +42,8 @@ mutate = dplyr::mutate
 
 assay = read_excel("immune_data/observations.xlsx", sheet = "removed",
                    col_types = c("date", "numeric", "text", "numeric", 
-                                 "numeric", "text", "text"))
+                                 "numeric", "text", "text")) %>%
+        suppressWarnings()
 
 assay$cup = as.character(assay$cup)
 
@@ -51,7 +52,10 @@ assay = assay %>% filter(cup > 18)
 
 cups = read_excel("immune_data/observations.xlsx", sheet = "cups",
                   col_types = c("numeric", "date", "date", "text", "numeric", "numeric",
-                                "text", "text"))
+                                "text", "text"))%>%
+        suppressWarnings()
+
+
 cups$cup = as.character(cups$cup)
 cups$id = as.character(cups$id)
 cups$color = toupper(cups$color)
@@ -200,7 +204,8 @@ coxph(Surv(days, status)~ cat + strata(rep), data = test4)
 ```
 
 
-Supplementary Figure
+## Supplementary Figure
+
 ```{r}
 ###crosses and partners
   
