@@ -17,7 +17,7 @@ Results from:
 
 Why diversity matters: non-additive fitness benefits of individual versus colony-level genetic variation in social insects
 
-by Ryals, D.K., Given, K.J., and Harpur, B.A.
+by Ryals, D.K., Buschkoetter, C.J., Given, K.J., and Harpur, B.A.
 
 
 Honey bee immune challenge assay, summer 2023.
@@ -126,6 +126,10 @@ test3$cat = NA
 test3$cat[test3$mix == "ii" | test3$mix == "ti"] = "inbred"
 test3$cat[test3$mix == "ix" | test3$mix == "tx"] = "hybrid"
 test3$cat[test3$mix == "ti:ii"] = "mixed"
+
+
+##TODO
+  #double-check censored data...
 
 ```
 

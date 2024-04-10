@@ -1,7 +1,13 @@
 # social-heterosis
 data, analysis, and results for an experiment on social heterosis in honey bees
 
-Publication:
+
+## Publication: 
+
+<ins>Why diversity matters: non-additive fitness benefits of individual versus colony-level genetic variation in social insects</ins>
+
+by Ryals, D.K., Buschkoetter, C.J., Given, K.J., and Harpur, B.A.
+
 
 Pre-Print:
 
@@ -15,4 +21,4 @@ Pre-Print:
 ## Data
 
 - `therm_data/sensors` : contains raw data uploads from iButton sensors
-- `immune_data/...` : contains a log of all observations over the course of the immune challenge assay
+- `immune_data/observations.xlsx` : contains a log of all observations over the course of the immune challenge assay
