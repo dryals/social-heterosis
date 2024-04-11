@@ -3,6 +3,8 @@ title: "Thermoregulation Assay"
 author: "Dylan Ryals"
 date: "2024-03-28"
 output: html_document
+editor_options: 
+  chunk_output_type: console
 ---
 
 ```{r setup, include=FALSE}
@@ -175,7 +177,7 @@ ib.variables.sum = ib.variables %>% group_by(assay_id) %>%
 
 #add keys for experimental groups
 therm = ib.variables.sum %>% 
-  left_join(ibkey %>% select(assay_id, mix, rep), by = 'assay_id')
+  left_join(ibkey %>% select(assay_id, treatment, rep), by = 'assay_id')
 
 paged_table(therm)
 ```
@@ -195,19 +197,19 @@ ib.cut2$control = factor(ib.cut2$control, levels = c("nuclei", "optimal (35.4 C)
 
 #add experimental groups
 ib.cut2 = ib.cut2 %>% 
-  left_join(ibkey %>% select(assay_id, mix))
+  left_join(ibkey %>% select(assay_id, treatment))
   #refactor
-  ib.cut2$mix[ib.cut2$mix %in% c("ii", "ti")] = "inbred"
-  ib.cut2$mix[ib.cut2$mix %in% c("tx", "ix")] = "hybrid"
-  ib.cut2$mix[ib.cut2$mix %in% c("ti:ii")] = "mixed"
-  ib.cut2$mix[ib.cut2$mix =="control"] = NA
-  ib.cut2$mix = factor(ib.cut2$mix, levels = c("inbred", "hybrid", "mixed"))
+  ib.cut2$treatment[ib.cut2$treatment %in% c("AA", "BB")] = "inbred"
+  ib.cut2$treatment[ib.cut2$treatment %in% c("BA", "AB")] = "hybrid"
+  ib.cut2$treatment[ib.cut2$treatment %in% c("AA+BB")] = "mixed"
+  ib.cut2$treatment[ib.cut2$treatment =="control"] = NA
+  ib.cut2$treatment = factor(ib.cut2$treatment, levels = c("inbred", "hybrid", "mixed"))
 
 group.colors = c("#648FFF", "#FFB000", "#DC267F")
   
 therm.temps = 
 ggplot(data = ib.cut2) +
-  geom_line(aes(x = datetime, y = temp, color = mix, group = assay_id,
+  geom_line(aes(x = datetime, y = temp, color = treatment, group = assay_id,
                 linetype = control), size = 0.6, alpha = 0.8) +
   scale_color_manual(values = group.colors, na.value = "black") +
   scale_linetype_manual(values= c(1,2,4)) +
@@ -227,9 +229,9 @@ Each varaiable is analysed using a paried t test, pairing observations within re
 ```{r}
 #create categories (experimental groups)
 therm$cat = NA
-  therm$cat[therm$mix == "ii" | therm$mix == "ti"] = "inbred"
-  therm$cat[therm$mix == "ix" | therm$mix == "tx"] = "hybrid"
-  therm$cat[therm$mix == "ti:ii"] = "mixed"
+  therm$cat[therm$treatment == "AA" | therm$treatment == "BB"] = "inbred"
+  therm$cat[therm$treatment == "BA" | therm$treatment == "AB"] = "hybrid"
+  therm$cat[therm$treatment == "AA+BB"] = "mixed"
   therm$cat = factor(therm$cat, levels = c("inbred", "hybrid", "mixed"))
 
   #remove control colony
@@ -250,15 +252,15 @@ paged_table(therm.means)
 #paired t tests: take means for both variables, convert to wide format
 paired = therm %>% group_by(rep) %>%
   #mean of inbred lines
-  filter(mix %in% c("ii", "ti")) %>%
+  filter(treatment %in% c("AA", "BB")) %>%
   summarise(inbred_var = mean(meanvar), inbred_err = mean(meanerr)) %>%
   #mixed group
   left_join(therm %>% 
-              filter(mix == "ti:ii") %>% 
+              filter(treatment == "AA+BB") %>% 
               select(mix_var = meanvar, mix_err = meanerr, rep)) %>%
   #mean of hybrid lines
   left_join(therm %>% 
-              filter(mix %in% c("ix", "tx")) %>% 
+              filter(treatment %in% c("AB", "BA")) %>% 
               group_by(rep) %>% 
               summarise(hybrid_var = mean(meanvar), hybrid_err = mean(meanerr)))
 
@@ -302,7 +304,7 @@ p.err = ggplot(therm2, aes(x = cat, y = meanerr)) +
     #text and significance
   labs(y = "Hourly Error (\u00B0C)",  x = NULL, shape = "replicate") +
     geom_signif( aes(color = NULL), step_increase = 0.15,
-    comparisons = list(c("inbred", "hybrid"), c("inbred", "mixed"), c("hybrid", "mix")),
+    comparisons = list(c("inbred", "hybrid"), c("inbred", "mixed"), c("hybrid", "mixed")),
     annotations = err.annotate, textsize = 3) +
   theme(axis.text.x.bottom = element_blank(),
         panel.border = element_blank(),
@@ -321,7 +323,7 @@ p.var = ggplot(therm2, aes(x = cat, y = meanvar)) +
     #text and significance
   labs(y = "Hourly Variance (\u00B0C^2)", shape = "replicate", x = NULL) +
     geom_signif( aes(color = NULL), step_increase = 0.15,
-    comparisons = list(c("inbred", "hybrid"), c("inbred", "mix"), c("hybrid", "mixed")),
+    comparisons = list(c("inbred", "hybrid"), c("inbred", "mixed"), c("hybrid", "mixed")),
     annotations = var.annotate, textsize = 3) +
     theme(panel.border = element_blank(),
           axis.text.x = element_text(size = 11))
@@ -331,6 +333,11 @@ both.vars = plot_grid(p.err, p.var, labels = c("", "C"), nrow = 2)
 
 plot_grid(therm.temps, both.vars, labels = "AUTO", ncol = 2,
           rel_widths = c(1, 0.6))
+
+#save figure
+ggsave("figures/figure3_therm.pdf", device = "pdf", units = "in",
+       width = 11.74, height = 5.81)
+  #figure imported into vector graphic editor for small edits
 ```
 
 
@@ -388,7 +395,9 @@ varexB = ggplot(vardata) +
   theme(legend.position = "none")
 
 plot_grid(varexA, varexB, nrow = 2, labels = "AUTO")
-
+#save figure
+ggsave("figures/supplemental1_thermvars.pdf", device = "pdf", units = "in",
+       width = 6.38, height = 6.54)
 ```
 
 
@@ -406,7 +415,7 @@ pbar.err = ggplot(therm2, aes(x = cat, y = meanerr)) +
   #text and significance
   labs(y = "Hourly Error (\u00B0 C)" , fill = "replicate", x = NULL) +
   geom_signif( aes(color = NULL), step_increase = 0.1,
-    comparisons = list(c("inbred", "hybrid"), c("inbred", "mix"), c("hybrid", "mix")),
+    comparisons = list(c("inbred", "hybrid"), c("inbred", "mixed"), c("hybrid", "mixed")),
     annotations = err.annotate, textsize = 4) +
   theme(axis.text.x.bottom = element_blank(),
         panel.border = element_blank(),
@@ -425,12 +434,15 @@ pbar.var = ggplot(therm2, aes(x = cat, y = meanvar)) +
   #text and significance
   labs(y = bquote("Hourly Variance (\u00B0 C^2)"), fill = "replicate", x = NULL) +
   geom_signif( aes(color = NULL), step_increase = 0.1,
-    comparisons = list(c("inbred", "hybrid"), c("inbred", "mix"), c("hybrid", "mix")),
+    comparisons = list(c("inbred", "hybrid"), c("inbred", "mixed"), c("hybrid", "mixed")),
     annotations = var.annotate, textsize = 4) +
   theme(panel.border = element_blank())
 
 #supp figure
 plot_grid(pbar.err, pbar.var, labels = "AUTO", nrow = 2)
+#save figure
+ggsave("figures/supplemental2_paired-t-test.pdf", device = "pdf", units = "in",
+       width = 7.59, height = 6.54)
 
 ```
 

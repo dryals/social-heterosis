@@ -47,9 +47,6 @@ assay = read_excel("immune_data/observations.xlsx", sheet = "removed",
 
 assay$cup = as.character(assay$cup)
 
-#remove configuration trials
-assay = assay %>% filter(cup > 18)
-
 cups = read_excel("immune_data/observations.xlsx", sheet = "cups",
                   col_types = c("numeric", "date", "date", "text", "numeric", "numeric",
                                 "text", "text"))%>%
@@ -72,12 +69,12 @@ cups = cups %>% left_join(key)
 Format and clean data for survival analysis
 
 ```{r}
-
+#define mixture for mixed micro colonies
 cuptype = data.frame(cup = unique(cups$cup), mix = NA)
 for(i in 1:nrow(cuptype)){
   mix = cups$cross[cups$cup == cuptype$cup[i]] %>% sort(decreasing = T)
   if(length(mix) == 2){
-    cuptype$mix[i] = paste0(mix[1], ":", mix[2])
+    cuptype$mix[i] = paste0(mix[1], "+", mix[2])
   }
   else cuptype$mix[i] = mix
 }
@@ -85,7 +82,6 @@ for(i in 1:nrow(cuptype)){
 cups = cups %>% left_join(cuptype, by = 'cup')
 
 #see cup totals
-
 summary = assay %>% filter(!is.na(color)) %>%
   group_by(cup, color) %>% 
   summarise(sum_dead = sum(count, na.rm = T))
@@ -109,32 +105,34 @@ assay.long = assay.long[-1,]
 assay2 = assay.long %>% 
   left_join(cups %>% select(cup, color, id, control, start, run, cross, mix, rep), 
             by = join_by(cup, color))
+
 assay2$start = as.numeric(assay2$start)
 assay2$runtime = assay2$datetime - assay2$start
 
-#fix order of some of the mix names
-assay2$mix[assay2$mix == "tx:ti"] = "ti:tx"
-assay2$mix[assay2$mix == "ix:ii"] = "ii:ix"
+#fix order of one mix name
+assay2$mix[assay2$mix == "AB+AB"] = "AB"
+
 #convert seconds to days
 assay2$days = assay2$runtime / (60 * 60 * 24)
 
 #remove cups with irregular counts 
 assay2 = assay2 %>% filter(! cup %in% c(24, 26, 31))
+#remove configuration trials
+assay2 = assay2 %>% filter(cup > 18)
+
 
 ### three category: inbred, cross, and mix
-
 test3 = assay2 %>% filter(color != "?", 
-                          mix %in% c('ti', 'ii', 'ti:ii', 'tx', 'ix'))
+                          mix %in% c('BB', 'AA', 'BB+AA', 'BA', 'AB'))
 
 test3$cat = NA
-test3$cat[test3$mix == "ii" | test3$mix == "ti"] = "inbred"
-test3$cat[test3$mix == "ix" | test3$mix == "tx"] = "hybrid"
-test3$cat[test3$mix == "ti:ii"] = "mixed"
+test3$cat[test3$mix %in% c("BB", "AA")] = "inbred"
+test3$cat[test3$mix %in% c("AB", "BA")] = "hybrid"
+test3$cat[test3$mix == "BB+AA"] = "mixed"
 
 
 ##TODO
   #double-check censored data...
-
 ```
 
 
@@ -160,6 +158,11 @@ gsp = ggsurvplot(sfit3, conf.int = T, palette = group.colors2) +
   labs(x = "Days")
 gsp
 
+#save figure
+ggsave("figures/figure2_immune.pdf", device = "pdf", units = "in",
+       width = 10.25, height = 7.35)
+  #figure imported into vector graphic editor for small edits
+
 #number of
   #trials
   test4 %>% filter(control == 0) %>% summarise(ncups = length(unique(cup)))
@@ -181,17 +184,17 @@ gsp
   
 
 ###test significance with log-rank tests
-  lr.hm = survdiff(Surv(days, status)~cat + strata(rep), data = test4, 
-                   subset= cat %in% c("mixed","hybrid"))
+  lr.mi = survdiff(Surv(days, status)~cat + strata(rep, cross), data = test4, 
+                   subset= cat %in% c("mixed","inbred"))
   
   lr.hi = survdiff(Surv(days, status)~cat + strata(rep), data = test4, 
                    subset= cat %in% c("hybrid","inbred"))
   
-  lr.mi = survdiff(Surv(days, status)~cat + strata(rep, cross), data = test4, 
-                   subset= cat %in% c("mixed","inbred"))
+  lr.hm = survdiff(Surv(days, status)~cat + strata(rep), data = test4, 
+                   subset= cat %in% c("mixed","hybrid"))
   
   
-  #raw p values:
+  #p values:
   logrank = data.frame(comparison = c("inbred:hybrid", "inbred:mixed", "hybrid:mixed"),
                     Pval = c(lr.hi$pvalue, lr.mi$pvalue, lr.hm$pvalue))
   
@@ -200,7 +203,8 @@ gsp
   
 ### and cox proportional hazard model
   
-coxph(Surv(days, status)~ cat + strata(rep), data = test4)
+cox1 = coxph(Surv(days, status)~ cat + strata(rep), data = test4)
+summary(cox1)
 ```
 
 
@@ -210,11 +214,12 @@ coxph(Surv(days, status)~ cat + strata(rep), data = test4)
 ###crosses and partners
   
   same = assay2$cross == assay2$mix
+  #remove controls
   indiv = assay2 %>% filter(control == 0)
   
   #add partners
   indiv$partner = NA
-  mix = str_split_fixed(indiv$mix, ":", 2)
+  mix = str_split_fixed(indiv$mix, "[+]", 2)
   for(i in 1:nrow(indiv)){
     if(mix[i,2] == ""){indiv$partner[i] = indiv$cross[i]}
     else if(mix[i,1] == indiv$cross[i]){indiv$partner[i] = mix[i,2]}
@@ -222,8 +227,12 @@ coxph(Surv(days, status)~ cat + strata(rep), data = test4)
   }
   
   
-  sfit4 = survfit(Surv(days, status) ~ cross + partner, data = indiv)
+sfit4 = survfit(Surv(days, status) ~ cross + partner, data = indiv)
   
-  ggsurvplot_facet(fit = sfit4, data = indiv, facet.by = 'cross', conf.int = T, pval = T)
+ggsurvplot_facet(fit = sfit4, data = indiv, facet.by = 'cross', conf.int = T, pval = T)
+
+#save figure
+ggsave("figures/supplemental3_immune-mixes.pdf", device = "pdf", units = "in",
+       width = 6.38, height = 6.54)
 
 ```
