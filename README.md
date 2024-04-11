@@ -4,7 +4,7 @@ data, analysis, and results for an experiment on social heterosis in honey bees
 
 ## Publication: 
 
-<ins>Why diversity matters: non-additive fitness benefits of individual versus colony-level genetic variation in social insects</ins>
+_Why diversity matters: non-additive fitness benefits of individual versus colony-level genetic variation in social insects_
 
 by Ryals, D.K., Buschkoetter, A.C., Given, K.J., and Harpur, B.A.
 
@@ -17,6 +17,8 @@ Pre-Print:
     - `therm_assay.html` : html output of above
 - `immune_assay.Rmd` : Complete analysis for the immune challenge assay
     - `immune_assay.html` : html output of above
+    
+NOTE: github does not have an html viewer. Please consider downloading html outputs and opening in a web browser. 
 
 ## Data
 

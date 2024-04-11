@@ -2,8 +2,10 @@
 title: "Thermoregulation Assay"
 author: "Dylan Ryals"
 date: "2024-03-28"
-output: html_document
-editor_options: 
+output:
+  pdf_document: default
+  html_document: default
+editor_options:
   chunk_output_type: console
 ---
 
