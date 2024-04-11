@@ -20,5 +20,5 @@ Pre-Print:
 
 ## Data
 
-- `therm_data/sensors` : contains raw data uploads from iButton sensors
-- `immune_data/observations.xlsx` : contains a log of all observations over the course of the immune challenge assay
+- `therm_data/sensors` : raw data uploads from iButton sensors
+- `immune_data/observations.xlsx` : log of all observations over the course of the immune challenge assay
