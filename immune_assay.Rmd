@@ -15,9 +15,9 @@ knitr::opts_chunk$set(echo = TRUE)
 
 Results from:
 
-Why diversity matters: non-additive fitness benefits of individual versus colony-level genetic variation in social insects
+Individual and social heterosis act independently in honey bee (Apis mellifera) colonies
 
-by Ryals, D.K., Buschkoetter, A.C., Given, K.J., and Harpur, B.A.
+by: Ryals, D.K., Buschkoetter, A.C., Given, K.J., and Harpur, B.A.
 
 
 Honey bee immune challenge assay, summer 2023.
@@ -226,13 +226,12 @@ summary(cox1)
     else{indiv$partner[i] = mix[i,1]}
   }
   
-  
 sfit4 = survfit(Surv(days, status) ~ cross + partner, data = indiv)
   
-ggsurvplot_facet(fit = sfit4, data = indiv, facet.by = 'cross', conf.int = T, pval = T)
+ggsurvplot_facet(fit = sfit4, data = indiv, facet.by = 'cross', 
+                 conf.int = T, pval = T)
 
 #save figure
 ggsave("figures/supplemental3_immune-mixes.pdf", device = "pdf", units = "in",
        width = 6.38, height = 6.54)
-
 ```

@@ -4,9 +4,9 @@ data, analysis, and results for an experiment on social heterosis in honey bees
 
 ## Publication: 
 
-_Why diversity matters: non-additive fitness benefits of individual versus colony-level genetic variation in social insects_
+_Individual and social heterosis act independently in honey bee (Apis mellifera) colonies_
 
-by Ryals, D.K., Buschkoetter, A.C., Given, K.J., and Harpur, B.A.
+by: Ryals, D.K., Buschkoetter, A.C., J Krispn Given, and Harpur, B.A.
 
 
 Pre-Print:

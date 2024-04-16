@@ -3,8 +3,8 @@ title: "Thermoregulation Assay"
 author: "Dylan Ryals"
 date: "2024-03-28"
 output:
-  pdf_document: default
   html_document: default
+  pdf_document: default
 editor_options:
   chunk_output_type: console
 ---
@@ -17,9 +17,9 @@ knitr::opts_chunk$set(echo = TRUE)
 
 Results from:
 
-Why diversity matters: non-additive fitness benefits of individual versus colony-level genetic variation in social insects
+Individual and social heterosis act independently in honey bee (Apis mellifera) colonies
 
-by Ryals, D.K., Buschkoetter, A.C., Given, K.J., and Harpur, B.A.
+by: Ryals, D.K., Buschkoetter, A.C., Given, K.J., and Harpur, B.A.
 
 
 Honey bee thermoregulation experiment, summer 2023.
@@ -278,6 +278,12 @@ paired = therm %>% group_by(rep) %>%
   err.annotate = c(test.ih.err$p.value, test.im.err$p.value, test.hm.err$p.value) %>%
     round(digits = 4) %>% as.character()
   
+  #difference
+  test.ih.err$estimate
+  test.im.err$estimate
+  test.hm.err$estimate
+  
+  
   #thermal variance: hybrid, mix, hybrid vs mix
   test.ih.var = t.test(Pair(inbred_var, hybrid_var)~1, data = paired, alternative = "greater")
     test.ih.var
@@ -285,6 +291,11 @@ paired = therm %>% group_by(rep) %>%
     test.im.var
   test.hm.var = t.test(Pair(hybrid_var, mix_var)~1, data = paired, alternative = "greater")
     test.hm.var
+    
+  #difference
+  test.ih.var$estimate
+  test.im.var$estimate
+  test.hm.var$estimate
     
   var.annotate = c(test.ih.var$p.value, test.im.var$p.value, test.hm.var$p.value) %>%
     round(digits = 4) %>% as.character()
@@ -333,7 +344,7 @@ p.var = ggplot(therm2, aes(x = cat, y = meanvar)) +
   #manuscript figure
 both.vars = plot_grid(p.err, p.var, labels = c("", "C"), nrow = 2)
 
-plot_grid(therm.temps, both.vars, labels = "AUTO", ncol = 2,
+cowplot::plot_grid(therm.temps, both.vars, labels = "AUTO", ncol = 2,
           rel_widths = c(1, 0.6))
 
 #save figure
@@ -396,7 +407,7 @@ varexB = ggplot(vardata) +
                                  color = assay_id)) +
   theme(legend.position = "none")
 
-plot_grid(varexA, varexB, nrow = 2, labels = "AUTO")
+cowplot::plot_grid(varexA, varexB, nrow = 2, labels = "AUTO")
 #save figure
 ggsave("figures/supplemental1_thermvars.pdf", device = "pdf", units = "in",
        width = 6.38, height = 6.54)
@@ -441,7 +452,8 @@ pbar.var = ggplot(therm2, aes(x = cat, y = meanvar)) +
   theme(panel.border = element_blank())
 
 #supp figure
-plot_grid(pbar.err, pbar.var, labels = "AUTO", nrow = 2)
+cowplot::plot_grid(pbar.err, pbar.var, labels = "AUTO", nrow = 2)
+
 #save figure
 ggsave("figures/supplemental2_paired-t-test.pdf", device = "pdf", units = "in",
        width = 7.59, height = 6.54)

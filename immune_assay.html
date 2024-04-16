@@ -360,9 +360,10 @@ display: none;
 <div id="introduction" class="section level1">
 <h1>Introduction</h1>
 <p>Results from:</p>
-<p>Why diversity matters: non-additive fitness benefits of individual
-versus colony-level genetic variation in social insects</p>
-<p>by Ryals, D.K., Buschkoetter, A.C., Given, K.J., and Harpur, B.A.</p>
+<p>Individual and social heterosis act independently in honey bee (Apis
+mellifera) colonies</p>
+<p>by: Ryals, D.K., Buschkoetter, A.C., Given, K.J., and Harpur,
+B.A.</p>
 <p>Honey bee immune challenge assay, summer 2023.</p>
 <div id="setup" class="section level2">
 <h2>Setup</h2>
@@ -623,10 +624,10 @@ summary(cox1)</code></pre>
     else{indiv$partner[i] = mix[i,1]}
   }
   
-  
 sfit4 = survfit(Surv(days, status) ~ cross + partner, data = indiv)
   
-ggsurvplot_facet(fit = sfit4, data = indiv, facet.by = &#39;cross&#39;, conf.int = T, pval = T)</code></pre>
+ggsurvplot_facet(fit = sfit4, data = indiv, facet.by = &#39;cross&#39;, 
+                 conf.int = T, pval = T)</code></pre>
 <pre><code>## Warning: `as.tibble()` was deprecated in tibble 2.0.0.
 ## ℹ Please use `as_tibble()` instead.
 ## ℹ The signature and semantics have changed, see `?as_tibble`.
