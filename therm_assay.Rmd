@@ -292,13 +292,15 @@ paired = therm %>% group_by(rep) %>%
   test.hm.var = t.test(Pair(hybrid_var, mix_var)~1, data = paired, alternative = "greater")
     test.hm.var
     
+  var.annotate = c(test.ih.var$p.value, test.im.var$p.value, test.hm.var$p.value) %>%
+    round(digits = 4) %>% as.character()
+    
   #difference
   test.ih.var$estimate
   test.im.var$estimate
   test.hm.var$estimate
     
-  var.annotate = c(test.ih.var$p.value, test.im.var$p.value, test.hm.var$p.value) %>%
-    round(digits = 4) %>% as.character()
+
 ```
 
 ## Main Figure
@@ -358,34 +360,19 @@ ggsave("figures/figure3_therm.pdf", device = "pdf", units = "in",
 
 calculation of variables 
 ```{r}
-#examples of error 
+#take example period with only two colonies
 varstart = as.POSIXct("2023-08-31 20:00:00", tz="UTC")
 varstop = as.POSIXct("2023-09-01 03:00:00", tz="UTC")
 vardata = ib.cut %>% filter(assay_id %in% c(4, 11),
                                 datetime > varstart,
                                 datetime < varstop)
+
 varsum = vardata %>% group_by(assay_id) %>%
   summarise(tsum = sum(abs(temp - TNEST)), tmean = mean(temp))
   varsum$y_manual = c(35, 33.75)
 
-varexA = ggplot(vardata) +
-  geom_line(aes(x = datetime, y = temp, color = assay_id)) +
-  geom_hline(yintercept = TNEST, linetype = 2) +
-  geom_ribbon(data = vardata %>% filter(assay_id == 4),  
-              aes(ymax = TNEST, ymin = temp, xmin = varstart, 
-                  xmax = varstop, x = datetime),
-              fill = 'red', alpha = 0.3) +
-  geom_ribbon(data = vardata %>% filter(assay_id == 11),  
-              aes(ymax = TNEST, ymin = temp, xmin = varstart, 
-                  xmax = varstop, x = datetime),
-              fill = 'turquoise2', alpha = 0.3)+
-  geom_label(data = varsum, aes(x = varstart + hours(3), 
-             label = round(tsum, 0), color = assay_id, y = y_manual)) +
-  labs(y = "Temperature (\u00B0C)", x = NULL) +
-  theme(legend.position = "none") +
-  theme(axis.text.x = element_blank())
 
-#examples of variance 
+#summarize data
 hours = data.frame( datetime = 
   seq(
     from=varstart,
@@ -398,14 +385,36 @@ exvar = ib.variables %>% filter(hour > varstart,
                                 assay_id %in% c(4, 11)) %>%
   mutate(midhour = hour - minutes(30))
 
-varexB = ggplot(vardata) +
+#example thermal error
+varexA = ggplot(vardata) +
   geom_line(aes(x = datetime, y = temp, color = assay_id)) +
+  geom_vline(xintercept = hours$datetime, linetype = 2) +
+  geom_hline(yintercept = TNEST, linetype = 2) +
+  geom_ribbon(data = vardata %>% filter(assay_id == 4),  
+              aes(ymax = TNEST, ymin = temp, xmin = varstart, 
+                  xmax = varstop, x = datetime),
+              fill = 'red', alpha = 0.3) +
+  geom_ribbon(data = vardata %>% filter(assay_id == 11),  
+              aes(ymax = TNEST, ymin = temp, xmin = varstart, 
+                  xmax = varstop, x = datetime),
+              fill = 'turquoise2', alpha = 0.3)+
+  geom_label(data = exvar, aes(x = midhour, y = (TNEST - (TNEST - mtemp)/2), 
+                                 label = round(err, 2), 
+                                 color = assay_id)) +
+  labs(y = "Temperature (\u00B0C)", x = NULL) +
+  theme(legend.position = "none")
+
+
+#example thermal variance
+varexB = ggplot(vardata) +
+  geom_point(aes(x = datetime, y = temp, color = assay_id)) +
   geom_vline(xintercept = hours$datetime, linetype = 2) +
   labs(y = "Temperature (\u00B0C)", x = NULL) +
   geom_label(data = exvar, aes(x = midhour, y = mtemp - 0.5, 
                                  label = round(var, 2), 
                                  color = assay_id)) +
   theme(legend.position = "none")
+
 
 cowplot::plot_grid(varexA, varexB, nrow = 2, labels = "AUTO")
 #save figure
