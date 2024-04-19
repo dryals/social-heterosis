@@ -129,10 +129,6 @@ test3$cat = NA
 test3$cat[test3$mix %in% c("BB", "AA")] = "inbred"
 test3$cat[test3$mix %in% c("AB", "BA")] = "hybrid"
 test3$cat[test3$mix == "BB+AA"] = "mixed"
-
-
-##TODO
-  #double-check censored data...
 ```
 
 

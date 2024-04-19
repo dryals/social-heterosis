@@ -479,11 +479,7 @@ test3 = assay2 %&gt;% filter(color != &quot;?&quot;,
 test3$cat = NA
 test3$cat[test3$mix %in% c(&quot;BB&quot;, &quot;AA&quot;)] = &quot;inbred&quot;
 test3$cat[test3$mix %in% c(&quot;AB&quot;, &quot;BA&quot;)] = &quot;hybrid&quot;
-test3$cat[test3$mix == &quot;BB+AA&quot;] = &quot;mixed&quot;
-
-
-##TODO
-  #double-check censored data...</code></pre>
+test3$cat[test3$mix == &quot;BB+AA&quot;] = &quot;mixed&quot;</code></pre>
 </div>
 <div id="survival-analysis" class="section level2">
 <h2>Survival Analysis</h2>
