@@ -9,7 +9,7 @@ _Individual and social heterosis act independently in honey bee (Apis mellifera)
 by: Ryals, D.K., Buschkoetter, A.C., J Krispn Given, and Harpur, B.A.
 
 
-Pre-Print:
+Pre-Print: https://doi.org/10.1093/jhered/esae043
 
 ## Analysis 
 
