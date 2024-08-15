@@ -19,7 +19,7 @@ Results from:
 
 Individual and social heterosis act independently in honey bee (Apis mellifera) colonies
 
-by: Ryals, D.K., Buschkoetter, A.C., Given, K.J., and Harpur, B.A.
+by: Ryals, D.K., Buschkoetter, A.C., Given, J.K., and Harpur, B.A.
 
 
 Honey bee thermoregulation experiment, summer 2023.
@@ -468,4 +468,13 @@ ggsave("figures/supplemental2_paired-t-test.pdf", device = "pdf", units = "in",
        width = 7.59, height = 6.54)
 
 ```
+
+export data
+```{r}
+save(list = c("therm2", "ib.variables"), file = "therm_data/processed.Rdata")
+```
+
+
+
+
 
