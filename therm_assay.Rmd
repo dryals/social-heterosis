@@ -350,8 +350,8 @@ cowplot::plot_grid(therm.temps, both.vars, labels = "AUTO", ncol = 2,
           rel_widths = c(1, 0.6))
 
 #save figure
-ggsave("figures/figure3_therm.pdf", device = "pdf", units = "in",
-       width = 11.74, height = 5.81)
+# ggsave("figures/figure3_therm.pdf", device = "pdf", units = "in",
+#        width = 11.74, height = 5.81)
   #figure imported into vector graphic editor for small edits
 ```
 
@@ -418,8 +418,8 @@ varexB = ggplot(vardata) +
 
 cowplot::plot_grid(varexA, varexB, nrow = 2, labels = "AUTO")
 #save figure
-ggsave("figures/supplemental1_thermvars.pdf", device = "pdf", units = "in",
-       width = 6.38, height = 6.54)
+# ggsave("figures/supplemental1_thermvars.pdf", device = "pdf", units = "in",
+#        width = 6.38, height = 6.54)
 ```
 
 
@@ -464,17 +464,9 @@ pbar.var = ggplot(therm2, aes(x = cat, y = meanvar)) +
 cowplot::plot_grid(pbar.err, pbar.var, labels = "AUTO", nrow = 2)
 
 #save figure
-ggsave("figures/supplemental2_paired-t-test.pdf", device = "pdf", units = "in",
-       width = 7.59, height = 6.54)
+# ggsave("figures/supplemental2_paired-t-test.pdf", device = "pdf", units = "in",
+#        width = 7.59, height = 6.54)
 
 ```
-
-export data
-```{r}
-save(list = c("therm2", "ib.variables"), file = "therm_data/processed.Rdata")
-```
-
-
-
 
 

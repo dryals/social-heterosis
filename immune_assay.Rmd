@@ -155,8 +155,8 @@ gsp = ggsurvplot(sfit3, conf.int = T, palette = group.colors2) +
 gsp
 
 #save figure
-ggsave("figures/figure2_immune.pdf", device = "pdf", units = "in",
-       width = 10.25, height = 7.35)
+# ggsave("figures/figure2_immune.pdf", device = "pdf", units = "in",
+#        width = 10.25, height = 7.35)
   #figure imported into vector graphic editor for small edits
 
 #number of
@@ -228,6 +228,6 @@ ggsurvplot_facet(fit = sfit4, data = indiv, facet.by = 'cross',
                  conf.int = T, pval = T)
 
 #save figure
-ggsave("figures/supplemental3_immune-mixes.pdf", device = "pdf", units = "in",
-       width = 6.38, height = 6.54)
+# ggsave("figures/supplemental3_immune-mixes.pdf", device = "pdf", units = "in",
+#        width = 6.38, height = 6.54)
 ```
